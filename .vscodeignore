@@ -1,4 +1,16 @@
 .git/**
 .vscode/**
+.github/**
 test/**
+scripts/**
+assets/flow-graph-gallery.svg
 *.vsix
+dist/**
+node_modules/**
+.vscode-test/**
+.env
+.env.*
+.npmrc
+*.log
+__pycache__/**
+*.pyc

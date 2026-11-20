@@ -41,6 +41,18 @@ test('marketplace README describes installation in Chinese without local package
   assert.doesNotMatch(readme, /VSIX|\.vsix|npm run package/);
 });
 
+test('marketplace publishing has no stored token and excludes local files', () => {
+  const workflow = readFileSync(path.join(root, '.github/workflows/publish.yml'), 'utf8');
+  const ignores = readFileSync(path.join(root, '.vscodeignore'), 'utf8');
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /id-token: write/);
+  assert.match(workflow, /publish --oidc/);
+  assert.doesNotMatch(workflow, /VSCE_PAT|AZURE_DEVOPS_EXT_PAT/);
+  for (const pattern of ['.env', '.npmrc', 'test/**', 'dist/**', '.github/**']) {
+    assert.ok(ignores.split('\n').includes(pattern), pattern);
+  }
+});
+
 test('inline actions remain available in the right-click menu, including both move arrows', () => {
   const menu = manifest.contributes.menus;
   for (const name of ['moveUp', 'moveDown', 'editNodeNote', 'addMessage', 'deleteNode']) {
