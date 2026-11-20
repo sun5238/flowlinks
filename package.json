@@ -2,9 +2,10 @@
   "name": "flowlinks",
   "displayName": "FlowLinks",
   "description": "Link source bookmarks into call trees and message handoffs.",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "publisher": "FlowLinks",
   "private": true,
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/sun5238/flowlinks.git"

@@ -9,6 +9,7 @@ test('packager uses an allowlist and no subprocess', () => {
   assert.ok(existsSync(script));
   const source = readFileSync(script, 'utf8');
   assert.match(source, /FILES = \(/);
+  assert.match(source, /"LICENSE\.md"/);
   assert.match(source, /zipfile\.ZipFile/);
   assert.doesNotMatch(source, /subprocess|bookmark-flow\/|code-flow\//);
 });

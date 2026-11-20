@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parent.parent
 FILES = (
     "package.json",
     "README.md",
+    "LICENSE.md",
     "assets/flow-graph.svg",
     "assets/flow-graph.png",
     "assets/gutter.svg",

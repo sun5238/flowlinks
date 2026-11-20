@@ -10,6 +10,11 @@ test('all contributed menu commands exist and runtime assets are bundled', () =>
   assert.equal(manifest.name, 'flowlinks');
   assert.equal(manifest.publisher, 'FlowLinks');
   assert.equal(manifest.displayName, 'FlowLinks');
+  assert.equal(manifest.license, 'MIT');
+  const license = readFileSync(path.join(root, 'LICENSE.md'), 'utf8');
+  assert.match(license, /^MIT License\n/);
+  assert.match(license, /Copyright \(c\) 2026 sun5238/);
+  assert.match(license, /permission notice shall be included/);
   assert.equal(manifest.contributes.viewsContainers.activitybar[0].title, 'FlowLinks');
   assert.equal(manifest.repository.url, 'https://github.com/sun5238/flowlinks.git');
   assert.ok(manifest.keywords.includes('bookmark'));

@@ -35,6 +35,6 @@ note 输入框中用 `\n` 表示换行，用 `\\` 输入字面上的反斜杠。
 
 项目源码与问题反馈见 [GitHub 仓库](https://github.com/sun5238/flowlinks)。
 
-本项目是独立实现，曾参考 Bookmark Flow 和 Code Flow Bookmarks 的交互方式。包含的 Tree-sitter 运行时及 C/Rust 语法资源的来源与许可见 `third_party/README.md`。
+本项目代码采用 [MIT 许可证](LICENSE.md)，并独立实现；曾参考 Bookmark Flow 和 Code Flow Bookmarks 的交互方式。包含的 Tree-sitter 运行时及 C/Rust 语法资源仍受其各自许可约束，来源与许可见 `third_party/README.md`。
 
 在源码目录运行 `npm test` 可执行测试；在 VS Code 中按 F5 可启动扩展开发宿主。
