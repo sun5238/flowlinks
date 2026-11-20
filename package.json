@@ -2,7 +2,7 @@
   "name": "flowlinks",
   "displayName": "FlowLinks",
   "description": "Link source bookmarks into call trees and message handoffs.",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "publisher": "FlowLinks",
   "private": true,
   "license": "MIT",

@@ -371,23 +371,19 @@ class ReadingGraph {
 
   moveUp(id) {
     const node = this.requireNode(id);
-    const parent = this.get(node.parentId);
-    if (!parent) return false;
-    this.detach(id);
-    node.parentId = parent.parentId;
-    const siblings = this.siblings(parent.parentId);
-    siblings.splice(siblings.indexOf(parent.id) + 1, 0, id);
+    const siblings = this.siblings(node.parentId);
+    const index = siblings.indexOf(id);
+    if (index <= 0) return false;
+    [siblings[index - 1], siblings[index]] = [siblings[index], siblings[index - 1]];
     return true;
   }
 
   moveDown(id) {
     const node = this.requireNode(id);
     const siblings = this.siblings(node.parentId);
-    const precedingId = siblings[siblings.indexOf(id) - 1];
-    if (!precedingId) return false;
-    this.detach(id);
-    node.parentId = precedingId;
-    this.requireNode(precedingId).children.push(id);
+    const index = siblings.indexOf(id);
+    if (index < 0 || index >= siblings.length - 1) return false;
+    [siblings[index], siblings[index + 1]] = [siblings[index + 1], siblings[index]];
     return true;
   }
 

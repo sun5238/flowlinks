@@ -12,32 +12,61 @@ function mockDocument(lines) {
   return { lineCount: lines.length, lineAt: index => ({ text: lines[index] }) };
 }
 
-test('roots, promotion, demotion and drag change only call parents', () => {
+test('sibling moves reorder entire subtrees without changing call parents, notes or messages', () => {
   const graph = new ReadingGraph();
   const a = add(graph, 'a', 0);
   const b = add(graph, 'b', 1);
   const c = add(graph, 'c', 2);
+  const d = add(graph, 'd', 3);
   graph.setNote(b.id, 'reader note');
   graph.moveOnto(b.id, a.id);
-  graph.moveOnto(c.id, b.id);
-  assert.deepEqual(graph.get(a.id).children, [b.id]);
-  assert.equal(graph.moveUp(c.id), true);
+  graph.moveOnto(c.id, a.id);
+  graph.moveOnto(d.id, b.id);
+  graph.addMessage(c.id, d.id, 'Ready');
   assert.deepEqual(graph.get(a.id).children, [b.id, c.id]);
+  assert.equal(graph.moveUp(c.id), true);
+  assert.deepEqual(graph.get(a.id).children, [c.id, b.id]);
   assert.equal(graph.moveDown(c.id), true);
-  assert.deepEqual(graph.get(b.id).children, [c.id]);
+  assert.deepEqual(graph.get(a.id).children, [b.id, c.id]);
+  assert.equal(graph.moveUp(b.id), false);
+  assert.equal(graph.moveDown(c.id), false);
+  assert.equal(graph.get(b.id).parentId, a.id);
+  assert.equal(graph.get(c.id).parentId, a.id);
+  assert.deepEqual(graph.get(b.id).children, [d.id]);
   assert.equal(graph.get(b.id).note, 'reader note');
-  assert.throws(() => graph.moveOnto(a.id, c.id), /descendant/);
+  assert.equal(graph.get(c.id).messages[0].targetId, d.id);
+  assert.throws(() => graph.moveOnto(a.id, d.id), /descendant/);
   graph.validate();
 });
 
-test('promoting a direct child of a root places it after the old parent', () => {
+test('top-level siblings can move up and down without leaving their group', () => {
   const graph = new ReadingGraph();
   const a = add(graph, 'a', 0);
   const b = add(graph, 'b', 1);
   const c = add(graph, 'c', 2);
-  graph.moveOnto(c.id, a.id);
-  graph.moveUp(c.id);
+  assert.equal(graph.moveUp(c.id), true);
   assert.deepEqual(graph.getGroup(a.groupId).children, [a.id, c.id, b.id]);
+  assert.equal(graph.moveDown(a.id), true);
+  assert.deepEqual(graph.getGroup(a.groupId).children, [c.id, a.id, b.id]);
+  assert.equal(graph.moveUp(c.id), false);
+  assert.equal(graph.moveDown(b.id), false);
+  assert.ok(graph.nodes().every(node => node.parentId === a.groupId));
+  graph.validate();
+});
+
+test('dragging can make a descendant the top-level parent of the old chain', () => {
+  const graph = new ReadingGraph();
+  const a = add(graph, 'a', 0);
+  const b = add(graph, 'b', 1);
+  const c = add(graph, 'c', 2);
+  graph.moveOnto(b.id, a.id);
+  graph.moveOnto(c.id, b.id);
+  graph.moveOnto(c.id, a.groupId);
+  graph.moveOnto(a.id, c.id);
+  assert.deepEqual(graph.getGroup(a.groupId).children, [c.id]);
+  assert.deepEqual(graph.get(c.id).children, [a.id]);
+  assert.deepEqual(graph.get(a.id).children, [b.id]);
+  graph.validate();
 });
 
 test('parallel messages, rename and deletion preserve other bookmarks', () => {

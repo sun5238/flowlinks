@@ -81,10 +81,11 @@ test('groups own source nodes, calls and message links without a source bookmark
   assert.deepEqual(provider.getChildren(reference), []);
   assert.doesNotMatch(provider.getTreeItem(entryElement).contextValue, /canMoveUp/);
   assert.match(provider.getTreeItem(roots[0]).contextValue, /graphGroup/);
-  assert.match(provider.getTreeItem(childElement).contextValue, /canMoveUp/);
-  graph.moveUp(child.id);
+  assert.doesNotMatch(provider.getTreeItem(childElement).contextValue, /canMoveUp|canMoveDown/);
+  assert.match(provider.getTreeItem(entryElement).contextValue, /canMoveDown/);
+  assert.equal(graph.moveUp(child.id), false);
   assert.equal(provider.getTreeItem(childElement).label, 'send');
-  assert.equal(provider.getParent(childElement).groupId, group.id);
+  assert.equal(provider.getParent(childElement).nodeId, root.id);
 });
 
 test('rendering a large sibling list does not search siblings for every row', () => {
@@ -96,19 +97,29 @@ test('rendering a large sibling list does not search siblings for every row', ()
   for (const root of roots) provider.getTreeItem(provider.nodeElement(root.id));
 });
 
-test('a nested node with a preceding sibling exposes both move directions', () => {
+test('only middle siblings expose both arrows and refresh updates their availability', () => {
   const graph = new ReadingGraph();
   graph.addGroup('Main');
   const parent = node(graph, 'parent', 0);
   const first = node(graph, 'first', 1);
   const second = node(graph, 'second', 2);
+  const third = node(graph, 'third', 3);
   graph.moveOnto(first.id, parent.id);
   graph.moveOnto(second.id, parent.id);
+  graph.moveOnto(third.id, parent.id);
   const provider = new GraphTreeProvider(vscode, graph, () => {});
   const context = provider.getTreeItem(provider.nodeElement(second.id)).contextValue;
   assert.match(context, /canMoveUp/);
   assert.match(context, /canMoveDown/);
+  assert.doesNotMatch(provider.getTreeItem(provider.nodeElement(first.id)).contextValue, /canMoveUp/);
+  assert.match(provider.getTreeItem(provider.nodeElement(first.id)).contextValue, /canMoveDown/);
+  assert.match(provider.getTreeItem(provider.nodeElement(third.id)).contextValue, /canMoveUp/);
+  assert.doesNotMatch(provider.getTreeItem(provider.nodeElement(third.id)).contextValue, /canMoveDown/);
   assert.doesNotMatch(provider.getTreeItem(provider.nodeElement(parent.id)).contextValue, /canMoveUp/);
+  graph.moveUp(second.id);
+  provider.refresh();
+  assert.doesNotMatch(provider.getTreeItem(provider.nodeElement(second.id)).contextValue, /canMoveUp/);
+  assert.match(provider.getTreeItem(provider.nodeElement(first.id)).contextValue, /canMoveUp/);
 });
 
 test('dragging onto a node or group changes ownership, but message rows reject drops', async () => {

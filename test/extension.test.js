@@ -377,7 +377,7 @@ test('expand all yields to cancellation on a deep tree', async () => {
   await extension.deactivate();
 });
 
-test('move down keeps the new parent expanded so the moved node remains visible', async () => {
+test('sibling arrows reorder without reparenting while drag expands the new parent', async () => {
   const host = mockHost('fn a() {}\nfn b() {}');
   const extension = loadExtension(host);
   await extension.activate(host.context);
@@ -393,15 +393,21 @@ test('move down keeps the new parent expanded so the moved node remains visible'
   assert.equal(provider.getTreeItem(provider.nodeElement(a.id)).collapsibleState, host.mock.TreeItemCollapsibleState.None);
   assert.equal(host.expanded.has(`node:${a.id}`), false);
 
-  const before = host.reveals.length;
-  await run('moveDown', provider.nodeElement(b.id));
+  await run('moveDown', provider.nodeElement(a.id));
+  assert.deepEqual(provider.graph.getGroup(a.groupId).children, [b.id, a.id]);
+  assert.equal(provider.graph.get(a.id).parentId, a.groupId);
+  assert.equal(provider.graph.get(b.id).parentId, b.groupId);
+  await run('moveUp', provider.nodeElement(a.id));
+  assert.deepEqual(provider.graph.getGroup(a.groupId).children, [a.id, b.id]);
+
+  const transfer = new Map();
+  provider.handleDrag([provider.nodeElement(b.id)], transfer);
+  const beforeDrag = host.reveals.length;
+  await provider.handleDrop(provider.nodeElement(a.id), transfer);
   assert.equal(provider.graph.get(b.id).parentId, a.id);
   assert.equal(provider.getTreeItem(provider.nodeElement(a.id)).collapsibleState, host.mock.TreeItemCollapsibleState.Collapsed);
-  assert.equal(host.expanded.has(`node:${a.id}`), true, 'the moved node must stay visible in the new parent');
-  assert.ok(host.reveals.slice(before).some(row => row.element.nodeId === b.id));
-  const beforeUp = host.reveals.length;
-  await run('moveUp', provider.nodeElement(b.id));
-  assert.equal(provider.graph.get(b.id).parentId, provider.graph.get(a.id).groupId);
-  assert.ok(host.reveals.slice(beforeUp).some(row => row.element.nodeId === b.id));
+  assert.equal(host.expanded.has(`node:${a.id}`), true, 'a newly reparented node must remain visible');
+  assert.ok(host.reveals.slice(beforeDrag).some(row => row.element.nodeId === a.id && row.details.expand === true));
+  assert.ok(host.reveals.slice(beforeDrag).some(row => row.element.nodeId === b.id));
   await extension.deactivate();
 });

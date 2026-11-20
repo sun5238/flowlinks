@@ -10,6 +10,7 @@ class GraphTreeProvider {
     this.emitter = new vscode.EventEmitter();
     this.onDidChangeTreeData = this.emitter.event;
     this.previousSiblings = new Set();
+    this.nextSiblings = new Set();
     this.updateSiblingPositions();
   }
 
@@ -24,10 +25,12 @@ class GraphTreeProvider {
 
   updateSiblingPositions() {
     this.previousSiblings.clear();
+    this.nextSiblings.clear();
     const siblingLists = [...this.graph.groups().map(group => group.children), ...this.graph.nodes().map(node => node.children)];
     for (const siblings of siblingLists) {
-      for (let index = 1; index < siblings.length; index++) {
-        this.previousSiblings.add(siblings[index]);
+      for (let index = 0; index < siblings.length; index++) {
+        if (index > 0) this.previousSiblings.add(siblings[index]);
+        if (index < siblings.length - 1) this.nextSiblings.add(siblings[index]);
       }
     }
   }
@@ -119,8 +122,8 @@ class GraphTreeProvider {
     item.id = `node:${element.nodeId}`;
     item.contextValue = [
       'graphNode',
-      node && graph.get(node.parentId) ? 'canMoveUp' : '',
-      this.previousSiblings.has(element.nodeId) ? 'canMoveDown' : '',
+      this.previousSiblings.has(element.nodeId) ? 'canMoveUp' : '',
+      this.nextSiblings.has(element.nodeId) ? 'canMoveDown' : '',
     ].filter(Boolean).join('|');
     item.iconPath = new vscode.ThemeIcon('circle-filled');
     if (node) {
