@@ -8,7 +8,7 @@ const manifest = require('../package.json');
 
 test('all contributed menu commands exist and runtime assets are bundled', () => {
   assert.equal(manifest.name, 'flowlinks');
-  assert.equal(manifest.publisher, 'local-flowlinks');
+  assert.equal(manifest.publisher, 'FlowLinks');
   assert.equal(manifest.displayName, 'FlowLinks');
   assert.equal(manifest.contributes.viewsContainers.activitybar[0].title, 'FlowLinks');
   assert.equal(manifest.repository.url, 'https://github.com/sun5238/flowlinks.git');

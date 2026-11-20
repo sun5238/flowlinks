@@ -15,6 +15,6 @@ test('packager uses an allowlist and no subprocess', () => {
 
 test('packaging command and extension identity are declared', () => {
   assert.equal(manifest.scripts.package, 'python3 scripts/package_vsix.py');
-  assert.equal(manifest.publisher, 'local-flowlinks');
+  assert.equal(manifest.publisher, 'FlowLinks');
   assert.equal(manifest.main, './src/extension.js');
 });

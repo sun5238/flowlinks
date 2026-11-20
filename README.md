@@ -13,7 +13,7 @@ FlowLinks 是一款面向源码阅读的 VS Code 扩展。它把散落在源码�
 
 ## 安装
 
-在 VS Code 的**扩展**视图中搜索 **FlowLinks**，确认发布者为 **local-flowlinks**，然后点击**安装**。要求 VS Code 1.90.0 或更新版本。
+在 VS Code 的**扩展**视图中搜索 **FlowLinks**，确认发布者为 **FlowLinks**，然后点击**安装**。要求 VS Code 1.90.0 或更新版本。
 
 ## 使用流程
 
@@ -29,7 +29,7 @@ note 输入框中用 `\n` 表示换行，用 `\\` 输入字面上的反斜杠。
 
 书签、路径、节点名称、note 和关系保存在 VS Code 针对当前工作区的扩展状态中，不会写入源码或项目文件。删除源码行不会自动删除节点；需要删除书签时使用 **Delete Node**。卸载扩展不保证清除这些工作区数据，如需清理，请在卸载前于各工作区运行 **FlowLinks: Clear Workspace Data**。
 
-旧版 FlowLinks 0.2.x 的数据会自动升级：旧树根将迁入一个同名 Group，原根节点的书签仍作为该 Group 的第一个节点保留。
+此前以 `local-flowlinks.flowlinks` 身份安装的本地测试包与 `FlowLinks.flowlinks` 是两个不同的扩展，工作区数据不会自动迁移；旧包和它的数据也不会被新包自动删除。
 
 ## 开发与许可
 
