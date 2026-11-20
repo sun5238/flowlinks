@@ -48,6 +48,8 @@ test('marketplace publishing has no stored token and excludes local files', () =
   assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /id-token: write/);
   assert.match(workflow, /publish --oidc/);
+  assert.match(workflow, /actions\/checkout@v7\.0\.1/);
+  assert.match(workflow, /actions\/setup-node@v7\.1\.0/);
   assert.doesNotMatch(workflow, /VSCE_PAT|AZURE_DEVOPS_EXT_PAT/);
   for (const pattern of ['.env', '.npmrc', 'test/**', 'dist/**', '.github/**']) {
     assert.ok(ignores.split('\n').includes(pattern), pattern);
