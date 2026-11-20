@@ -11,6 +11,7 @@ test('all contributed menu commands exist and runtime assets are bundled', () =>
   assert.equal(manifest.publisher, 'local-flowlinks');
   assert.equal(manifest.displayName, 'FlowLinks');
   assert.equal(manifest.contributes.viewsContainers.activitybar[0].title, 'FlowLinks');
+  assert.equal(manifest.repository.url, 'https://github.com/sun5238/flowlinks.git');
   assert.ok(manifest.keywords.includes('bookmark'));
   const commands = new Set(manifest.contributes.commands.map(entry => entry.command));
   for (const entries of Object.values(manifest.contributes.menus)) {

@@ -5,6 +5,10 @@
   "version": "0.3.2",
   "publisher": "local-flowlinks",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sun5238/flowlinks.git"
+  },
   "icon": "assets/flow-graph.png",
   "engines": {
     "vscode": "^1.90.0"
