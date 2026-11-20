@@ -1,0 +1,11 @@
+node_modules/
+.vscode-test/
+*.vsix
+dist/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+.env.*
+.npmrc
+*.log

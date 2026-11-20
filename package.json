@@ -1,0 +1,106 @@
+{
+  "name": "flowlinks",
+  "displayName": "FlowLinks",
+  "description": "Link source bookmarks into call trees and message handoffs.",
+  "version": "0.3.2",
+  "publisher": "local-flowlinks",
+  "private": true,
+  "icon": "assets/flow-graph.png",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Other"],
+  "keywords": ["bookmark", "call tree", "code navigation", "source reading", "message flow"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./src/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "flowlinks",
+          "title": "FlowLinks",
+          "icon": "assets/flow-graph.svg"
+        }
+      ]
+    },
+    "views": {
+      "flowlinks": [
+        {
+          "id": "flowlinks.tree",
+          "name": "FlowLinks"
+        }
+      ]
+    },
+    "commands": [
+      { "command": "flowlinks.createGroup", "category": "FlowLinks", "title": "Create Group", "icon": "$(new-folder)" },
+      { "command": "flowlinks.selectGroup", "category": "FlowLinks", "title": "Switch Active Group", "icon": "$(list-selection)" },
+      { "command": "flowlinks.setActiveGroup", "category": "FlowLinks", "title": "Use This Group", "icon": "$(check)" },
+      { "command": "flowlinks.deleteGroup", "category": "FlowLinks", "title": "Delete Group", "icon": "$(trash)" },
+      { "command": "flowlinks.expandAll", "category": "FlowLinks", "title": "Expand All", "icon": "$(expand-all)" },
+      { "command": "flowlinks.addNode", "category": "FlowLinks", "title": "Add Node", "icon": "$(add)" },
+      { "command": "flowlinks.editNodeName", "category": "FlowLinks", "title": "Edit Node Name", "icon": "$(edit)" },
+      { "command": "flowlinks.editNodeNote", "category": "FlowLinks", "title": "Edit Node Note", "icon": "$(note)" },
+      { "command": "flowlinks.renameGroup", "category": "FlowLinks", "title": "Rename Group", "icon": "$(edit)" },
+      { "command": "flowlinks.deleteNode", "category": "FlowLinks", "title": "Delete Node", "icon": "$(trash)" },
+      { "command": "flowlinks.moveUp", "category": "FlowLinks", "title": "Move Up", "icon": "$(arrow-up)" },
+      { "command": "flowlinks.moveDown", "category": "FlowLinks", "title": "Move Down", "icon": "$(arrow-down)" },
+      { "command": "flowlinks.addMessage", "category": "FlowLinks", "title": "Add Message", "icon": "$(link)" },
+      { "command": "flowlinks.editMessage", "category": "FlowLinks", "title": "Edit Message Label", "icon": "$(edit)" },
+      { "command": "flowlinks.deleteMessage", "category": "FlowLinks", "title": "Delete Message", "icon": "$(trash)" },
+      { "command": "flowlinks.clearWorkspaceData", "category": "FlowLinks", "title": "Clear Workspace Data", "icon": "$(clear-all)" },
+      { "command": "flowlinks.jumpToNode", "category": "FlowLinks", "title": "Jump to Node" },
+      { "command": "flowlinks.revealReceiver", "category": "FlowLinks", "title": "Reveal Receiver" }
+    ],
+    "menus": {
+      "commandPalette": [
+        { "command": "flowlinks.editNodeName", "when": "false" },
+        { "command": "flowlinks.editNodeNote", "when": "false" },
+        { "command": "flowlinks.renameGroup", "when": "false" },
+        { "command": "flowlinks.setActiveGroup", "when": "false" },
+        { "command": "flowlinks.deleteGroup", "when": "false" },
+        { "command": "flowlinks.moveUp", "when": "false" },
+        { "command": "flowlinks.moveDown", "when": "false" },
+        { "command": "flowlinks.addMessage", "when": "false" },
+        { "command": "flowlinks.editMessage", "when": "false" },
+        { "command": "flowlinks.deleteMessage", "when": "false" },
+        { "command": "flowlinks.jumpToNode", "when": "false" },
+        { "command": "flowlinks.revealReceiver", "when": "false" }
+      ],
+      "editor/context": [
+        { "command": "flowlinks.addNode", "group": "navigation@10" }
+      ],
+      "view/title": [
+        { "command": "flowlinks.createGroup", "group": "navigation@1", "when": "view == flowlinks.tree" },
+        { "command": "flowlinks.selectGroup", "group": "navigation@2", "when": "view == flowlinks.tree" },
+        { "command": "flowlinks.addNode", "group": "navigation@3", "when": "view == flowlinks.tree" },
+        { "command": "flowlinks.expandAll", "group": "navigation@4", "when": "view == flowlinks.tree" },
+        { "command": "flowlinks.clearWorkspaceData", "group": "2_manage@1", "when": "view == flowlinks.tree" }
+      ],
+      "view/item/context": [
+        { "command": "flowlinks.setActiveGroup", "group": "inline@1", "when": "view == flowlinks.tree && viewItem =~ /inactiveGroup/" },
+        { "command": "flowlinks.addNode", "group": "1_actions@1", "when": "view == flowlinks.tree && viewItem =~ /graphGroup/" },
+        { "command": "flowlinks.setActiveGroup", "group": "1_actions@2", "when": "view == flowlinks.tree && viewItem =~ /graphGroup/" },
+        { "command": "flowlinks.renameGroup", "group": "1_actions@3", "when": "view == flowlinks.tree && viewItem =~ /graphGroup/" },
+        { "command": "flowlinks.deleteGroup", "group": "9_delete@1", "when": "view == flowlinks.tree && viewItem =~ /graphGroup/" },
+        { "command": "flowlinks.moveUp", "group": "inline@1", "when": "view == flowlinks.tree && viewItem =~ /canMoveUp/" },
+        { "command": "flowlinks.moveDown", "group": "inline@2", "when": "view == flowlinks.tree && viewItem =~ /canMoveDown/" },
+        { "command": "flowlinks.editNodeNote", "group": "inline@3", "when": "view == flowlinks.tree && viewItem =~ /graphNode/" },
+        { "command": "flowlinks.addMessage", "group": "inline@4", "when": "view == flowlinks.tree && viewItem =~ /graphNode/" },
+        { "command": "flowlinks.deleteNode", "group": "inline@5", "when": "view == flowlinks.tree && viewItem =~ /graphNode/" },
+        { "command": "flowlinks.editNodeName", "group": "1_edit@1", "when": "view == flowlinks.tree && viewItem =~ /graphNode/" },
+        { "command": "flowlinks.editNodeNote", "group": "1_edit@2", "when": "view == flowlinks.tree && viewItem =~ /graphNode/" },
+        { "command": "flowlinks.moveUp", "group": "2_move@1", "when": "view == flowlinks.tree && viewItem =~ /canMoveUp/" },
+        { "command": "flowlinks.moveDown", "group": "2_move@2", "when": "view == flowlinks.tree && viewItem =~ /canMoveDown/" },
+        { "command": "flowlinks.addMessage", "group": "3_link@1", "when": "view == flowlinks.tree && viewItem =~ /graphNode/" },
+        { "command": "flowlinks.deleteNode", "group": "9_delete@1", "when": "view == flowlinks.tree && viewItem =~ /graphNode/" },
+        { "command": "flowlinks.editMessage", "group": "inline@1", "when": "view == flowlinks.tree && viewItem == graphMessage" },
+        { "command": "flowlinks.editMessage", "group": "1_edit@1", "when": "view == flowlinks.tree && viewItem == graphMessage" },
+        { "command": "flowlinks.deleteMessage", "group": "3_delete@1", "when": "view == flowlinks.tree && viewItem == graphMessage" }
+      ]
+    }
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "package": "python3 scripts/package_vsix.py"
+  }
+}
