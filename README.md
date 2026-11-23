@@ -27,7 +27,9 @@ note 输入框中用 `\n` 表示换行，用 `\\` 输入字面上的反斜杠。
 
 ## 数据与隐私
 
-书签、路径、节点名称、note 和关系保存在 VS Code 针对当前工作区的扩展状态中，不会写入源码或项目文件。删除源码行不会自动删除节点；需要删除书签时使用 **Delete Node**。卸载扩展不保证清除这些工作区数据，如需清理，请在卸载前于各工作区运行 **FlowLinks: Clear Workspace Data**。
+单文件夹本地工作区的数据保存在工作区目录的 `.vscode/flowlinks.json`，不同 VS Code 环境打开同一个目录可以共享 Group、书签、note 和关系。工作区内的源码路径以相对路径保存，因此目录在不同环境下挂载到不同位置也能定位；另一个窗口保存后，本窗口会刷新视图。首次打开时，原有的 VS Code `workspaceState` 数据会迁入共享文件。如果另一个环境已有独立旧数据，FlowLinks 会把它备份为 `.vscode/flowlinks.legacy-*.json` 并提示人工核对，不会自动合并。多根工作区和非 `file` 工作区仍使用原来的 `workspaceState`，不跨环境共享。
+
+共享文件在项目目录内，可能被 Git 跟踪；如果不希望提交其中的路径或 note，请将 `.vscode/flowlinks*.json` 加入项目的 `.gitignore`。写入使用临时文件和重命名，避免留下只写了一半的 JSON。如果两个窗口几乎同时修改，最后完成的写入会覆盖另一窗口的整份图，不会自动合并或生成并发冲突备份。删除源码行不会自动删除节点；需要删除书签时使用 **Delete Node**。**Clear Workspace Data** 会清空共享文件中的数据，而不会删除源码或旧环境备份。卸载扩展不会自动清除数据。
 
 此前以 `local-flowlinks.flowlinks` 身份安装的本地测试包与 `FlowLinks.flowlinks` 是两个不同的扩展，工作区数据不会自动迁移；旧包和它的数据也不会被新包自动删除。
 

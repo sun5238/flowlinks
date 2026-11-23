@@ -34,6 +34,7 @@ FILES = (
     "src/note-text.js",
     "src/persistence.js",
     "src/tree.js",
+    "src/workspace-store.js",
 )
 
 VSIX_NS = "http://schemas.microsoft.com/developer/vsx-schema/2011"

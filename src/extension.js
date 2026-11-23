@@ -7,6 +7,7 @@ const { NodeNamer } = require('./naming');
 const { trackDocumentChanges } = require('./anchor');
 const { encodeNote, decodeNote } = require('./note-text');
 const { GraphPersistence } = require('./persistence');
+const { WorkspaceStore } = require('./workspace-store');
 
 const STORAGE_KEY = 'flowlinks.state.v1';
 let persistence;
@@ -54,8 +55,19 @@ async function resolveStaticName(namer, document, point) {
 
 async function activate(context) {
   let graph;
+  const store = WorkspaceStore.forWorkspace(vscode);
   try {
-    graph = new ReadingGraph(context.workspaceState.get(STORAGE_KEY));
+    const legacy = context.workspaceState.get(STORAGE_KEY);
+    graph = new ReadingGraph(store ? await store.load(legacy) : legacy);
+    if (store && legacy !== undefined) {
+      if (store.base === null) {
+        await store.save(graph.snapshot());
+      } else {
+        const backup = await store.backUpLegacy(new ReadingGraph(legacy).snapshot());
+        void vscode.window.showWarningMessage(`FlowLinks found separate old data in this VS Code environment. It was saved to ${backup} for manual review; the shared workspace data takes precedence.`);
+      }
+      await context.workspaceState.update(STORAGE_KEY, undefined);
+    }
   } catch (error) {
     await vscode.window.showErrorMessage(`FlowLinks could not load its saved data; nothing was changed: ${error.message}`);
     return;
@@ -67,12 +79,13 @@ async function activate(context) {
   let clearing = false;
   persistence = new GraphPersistence(
     () => graph.snapshot(),
-    state => context.workspaceState.update(STORAGE_KEY, state),
+    state => store ? store.save(state) : context.workspaceState.update(STORAGE_KEY, state),
     error => {
       const now = Date.now();
-      if (now - lastSaveErrorAt < 10_000) return;
-      lastSaveErrorAt = now;
-      return vscode.window.showErrorMessage(`FlowLinks could not save its data: ${error.message}`);
+      if (now - lastSaveErrorAt >= 10_000) {
+        lastSaveErrorAt = now;
+        void vscode.window.showErrorMessage(`FlowLinks could not save its data: ${error.message}`);
+      }
     }
   );
   let provider;
@@ -95,10 +108,36 @@ async function activate(context) {
   });
   context.subscriptions.push(view, provider, decorations);
 
+  let pendingSync = Promise.resolve();
+  function syncFromDisk() {
+    const next = pendingSync.catch(() => {}).then(async () => {
+      if (!store || clearing || persistence.dirty || persistence.writing) return;
+      const snapshot = await store.refresh();
+      if (snapshot === undefined) return;
+      graph = new ReadingGraph(snapshot);
+      provider.graph = graph;
+      decorations.graph = graph;
+      provider.refresh();
+      decorations.updateVisible();
+    });
+    pendingSync = next;
+    return next;
+  }
+
+  if (store) {
+    context.subscriptions.push(store.watch(() => {
+      void syncFromDisk().catch(error => vscode.window.showErrorMessage(`FlowLinks could not reload shared data: ${error.message}`));
+    }));
+  }
+
   function register(command, handler) {
     context.subscriptions.push(vscode.commands.registerCommand(command, async (...args) => {
       if (clearing) return undefined;
       try {
+        if (store) {
+          await persistence.flush();
+          await syncFromDisk();
+        }
         return await handler(...args);
       } catch (error) {
         await vscode.window.showErrorMessage(`FlowLinks: ${error.message}`);
@@ -108,6 +147,7 @@ async function activate(context) {
   }
 
   async function focusNode(id) {
+    if (!graph.get(id)) return;
     await view.reveal(provider.nodeElement(id), { select: true, focus: true });
   }
 
@@ -135,6 +175,7 @@ async function activate(context) {
     if (name === undefined) return undefined;
     const group = graph.addGroup(name);
     await changed();
+    if (!graph.getGroup(group.id)) return undefined;
     await view.reveal(provider.groupElement(group.id), { select: true, focus: true });
     return group;
   }
@@ -409,7 +450,8 @@ async function activate(context) {
       provider.graph = empty;
       decorations.graph = empty;
       try {
-        await context.workspaceState.update(STORAGE_KEY, undefined);
+        if (store) await store.save(empty.snapshot());
+        else await context.workspaceState.update(STORAGE_KEY, undefined);
       } catch (error) {
         graph = previous;
         provider.graph = previous;
@@ -442,7 +484,7 @@ async function activate(context) {
     vscode.window.onDidChangeActiveTextEditor(editor => decorations.updateEditor(editor))
   );
   decorations.updateVisible();
-  if (graph.migrated) persistence.schedule();
+  if (graph.migrated && !store) persistence.schedule();
 }
 
 async function deactivate() {

@@ -2,7 +2,11 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const Module = require('node:module');
 const path = require('node:path');
+const fs = require('node:fs/promises');
+const os = require('node:os');
+const { pathToFileURL, fileURLToPath } = require('node:url');
 const { ReadingGraph } = require('../src/graph');
+const { WorkspaceStore } = require('../src/workspace-store');
 
 class Position {
   constructor(line, character) { this.line = line; this.character = character; }
@@ -34,7 +38,7 @@ class MarkdownString {
   appendText(value) { this.value += value; return this; }
 }
 
-function mockHost(source) {
+function mockHost(source, root) {
   const handlers = new Map();
   const callbacks = {};
   const saved = new Map();
@@ -47,9 +51,10 @@ function mockHost(source) {
   const errors = [];
   const confirmations = [];
   const progressControl = { cancelAfter: Infinity, started: 0 };
+  const sourcePath = root ? path.join(root, 'main.rs') : '/test/main.rs';
   const uri = {
-    scheme: 'file', fsPath: '/test/main.rs', path: '/test/main.rs',
-    toString: () => 'file:///test/main.rs',
+    scheme: 'file', fsPath: sourcePath, path: sourcePath,
+    toString: () => pathToFileURL(sourcePath).toString(),
   };
   const document = {
     uri,
@@ -79,14 +84,22 @@ function mockHost(source) {
     ProgressLocation: { Notification: 1 },
     TreeItemCollapsibleState: { None: 0, Collapsed: 1 },
     Uri: {
-      file: fsPath => ({ fsPath, toString: () => `file://${fsPath}` }),
-      parse: input => input === uri.toString() ? uri : { ...uri, toString: () => input },
+      file: fsPath => ({ scheme: 'file', fsPath, path: fsPath, toString: () => pathToFileURL(fsPath).toString() }),
+      parse: input => input === uri.toString() ? uri : { scheme: 'file', fsPath: fileURLToPath(input), toString: () => input },
     },
+    RelativePattern: class { constructor(folder, pattern) { this.folder = folder; this.pattern = pattern; } },
     workspace: {
+      workspaceFolders: root ? [{ uri: { scheme: 'file', fsPath: root } }] : undefined,
       getWorkspaceFolder: () => ({}),
       asRelativePath: resource => resource.fsPath,
       openTextDocument: async () => document,
       onDidChangeTextDocument: listener => { callbacks.edit = listener; return { dispose() {} }; },
+      createFileSystemWatcher: () => ({
+        onDidCreate: listener => { callbacks.file = listener; return { dispose() {} }; },
+        onDidChange: listener => { callbacks.file = listener; return { dispose() {} }; },
+        onDidDelete: listener => { callbacks.file = listener; return { dispose() {} }; },
+        dispose() {},
+      }),
     },
     window: {
       activeTextEditor: editor,
@@ -106,7 +119,7 @@ function mockHost(source) {
       },
       showErrorMessage: async text => { errors.push(text); },
       showWarningMessage: async (_text, options) => {
-        assert.equal(options.modal, true);
+        if (options) assert.equal(options.modal, true);
         return confirmations.shift();
       },
       showInformationMessage: async text => { informationMessages.push(text); return infoReplies.shift(); },
@@ -290,6 +303,117 @@ test('extension workflow captures, reparents, links, navigates, tracks and persi
   assert.equal(host.editor.marks.length, 1);
   assert.equal(host.errors.length, 1);
   await extension.deactivate();
+});
+
+test('separate VS Code environments share, migrate, and refresh one workspace', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'flowlinks-extension-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const first = mockHost('fn entry() {}', root);
+  const original = new ReadingGraph();
+  original.addGroup('Migrated');
+  first.saved.set('flowlinks.state.v1', original.snapshot());
+  const extensionA = loadExtension(first);
+  await extensionA.activate(first.context);
+  const file = path.join(root, '.vscode', 'flowlinks.json');
+  assert.equal(JSON.parse(await fs.readFile(file, 'utf8')).format, 'flowlinks-workspace-v1');
+  cursor(first.editor, 'entry(');
+  await first.handlers.get('flowlinks.addNode')();
+
+  const second = mockHost('fn entry() {}', root);
+  const extensionB = loadExtension(second);
+  await extensionB.activate(second.context);
+  const provider = second.mock.treeView.options.treeDataProvider;
+  assert.equal(provider.graph.nodes().length, 1);
+  assert.equal(provider.graph.groups()[0].name, 'Migrated');
+
+  first.prompts.push('Shared');
+  await first.handlers.get('flowlinks.createGroup')();
+  second.callbacks.file();
+  for (let i = 0; i < 100 && provider.graph.groups().length !== 2; i++) {
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  assert.deepEqual(provider.graph.groups().map(group => group.name), ['Migrated', 'Shared']);
+  cursor(second.editor, 'entry(');
+  await second.handlers.get('flowlinks.addNode')();
+  const sharedStore = new WorkspaceStore(second.mock, second.mock.workspace.workspaceFolders[0]);
+  assert.equal(new ReadingGraph(await sharedStore.load()).nodes().length, 2);
+
+  second.confirmations.push('Delete All');
+  await second.handlers.get('flowlinks.clearWorkspaceData')();
+  assert.equal(JSON.parse(await fs.readFile(file, 'utf8')).graph.groupOrder.length, 0);
+  await extensionA.deactivate();
+  await extensionB.deactivate();
+  assert.deepEqual(first.errors, []);
+  assert.deepEqual(second.errors, []);
+});
+
+test('a delayed edit from another window becomes the last shared write', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'flowlinks-conflict-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const first = mockHost('fn entry() {}', root);
+  const extensionA = loadExtension(first);
+  await extensionA.activate(first.context);
+  first.prompts.push('Base');
+  await first.handlers.get('flowlinks.createGroup')();
+
+  const second = mockHost('fn entry() {}', root);
+  const extensionB = loadExtension(second);
+  await extensionB.activate(second.context);
+  let answer;
+  let prompted;
+  const waiting = new Promise(resolve => { prompted = resolve; });
+  second.mock.window.showInputBox = async () => {
+    prompted();
+    return new Promise(resolve => { answer = resolve; });
+  };
+  const pending = second.handlers.get('flowlinks.createGroup')();
+  await waiting;
+  first.prompts.push('Newer');
+  await first.handlers.get('flowlinks.createGroup')();
+  answer('Stale');
+  await pending;
+
+  const shared = JSON.parse(await fs.readFile(path.join(root, '.vscode', 'flowlinks.json'), 'utf8'));
+  assert.deepEqual(shared.graph.groupOrder.map(id => shared.graph.groups[id].name), ['Base', 'Stale']);
+  assert.deepEqual(second.mock.treeView.options.treeDataProvider.graph.groups().map(group => group.name), ['Base', 'Stale']);
+  first.callbacks.file();
+  const provider = first.mock.treeView.options.treeDataProvider;
+  for (let i = 0; i < 100 && provider.graph.groups().at(-1).name !== 'Stale'; i++) {
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  assert.deepEqual(provider.graph.groups().map(group => group.name), ['Base', 'Stale']);
+  const backups = (await fs.readdir(path.join(root, '.vscode'))).filter(name => name.startsWith('flowlinks.conflict-'));
+  assert.equal(backups.length, 0);
+  assert.deepEqual(first.errors, []);
+  assert.deepEqual(second.errors, []);
+  await extensionA.deactivate();
+  await extensionB.deactivate();
+});
+
+test('an environment with separate old data backs it up before using the shared file', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'flowlinks-legacy-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const first = mockHost('fn entry() {}', root);
+  const extensionA = loadExtension(first);
+  await extensionA.activate(first.context);
+  first.prompts.push('Shared');
+  await first.handlers.get('flowlinks.createGroup')();
+
+  const second = mockHost('fn entry() {}', root);
+  const original = new ReadingGraph();
+  original.addGroup('Old environment');
+  second.saved.set('flowlinks.state.v1', original.snapshot());
+  const extensionB = loadExtension(second);
+  await extensionB.activate(second.context);
+  const provider = second.mock.treeView.options.treeDataProvider;
+  assert.deepEqual(provider.graph.groups().map(group => group.name), ['Shared']);
+  assert.equal(second.saved.has('flowlinks.state.v1'), false);
+  const backups = (await fs.readdir(path.join(root, '.vscode'))).filter(name => name.startsWith('flowlinks.legacy-'));
+  assert.equal(backups.length, 1);
+  const backup = JSON.parse(await fs.readFile(path.join(root, '.vscode', backups[0]), 'utf8'));
+  assert.equal(backup.graph.groups[backup.graph.groupOrder[0]].name, 'Old environment');
+  await extensionA.deactivate();
+  await extensionB.deactivate();
 });
 
 test('activation upgrades legacy group titles and flushes them on deactivate', async () => {
