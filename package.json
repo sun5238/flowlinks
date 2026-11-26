@@ -2,7 +2,7 @@
   "name": "flowlinks",
   "displayName": "FlowLinks",
   "description": "Link source bookmarks into call trees and message handoffs.",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "publisher": "FlowLinks",
   "private": true,
   "license": "MIT",
@@ -99,6 +99,7 @@
         { "command": "flowlinks.addMessage", "group": "3_link@1", "when": "view == flowlinks.tree && viewItem =~ /graphNode/" },
         { "command": "flowlinks.deleteNode", "group": "9_delete@1", "when": "view == flowlinks.tree && viewItem =~ /graphNode/" },
         { "command": "flowlinks.editMessage", "group": "inline@1", "when": "view == flowlinks.tree && viewItem == graphMessage" },
+        { "command": "flowlinks.deleteMessage", "group": "inline@2", "when": "view == flowlinks.tree && viewItem == graphMessage" },
         { "command": "flowlinks.editMessage", "group": "1_edit@1", "when": "view == flowlinks.tree && viewItem == graphMessage" },
         { "command": "flowlinks.deleteMessage", "group": "3_delete@1", "when": "view == flowlinks.tree && viewItem == graphMessage" }
       ]

@@ -1,5 +1,10 @@
 const MIME = 'application/vnd.code.tree.flowlinks.tree';
 
+function notePreview(note) {
+  const characters = Array.from(note.replace(/\s+/g, ' ').trim());
+  return characters.length > 36 ? `${characters.slice(0, 36).join('')}...` : characters.join('');
+}
+
 class GraphTreeProvider {
   constructor(vscode, graph, onChange) {
     this.vscode = vscode;
@@ -125,8 +130,11 @@ class GraphTreeProvider {
       this.previousSiblings.has(element.nodeId) ? 'canMoveUp' : '',
       this.nextSiblings.has(element.nodeId) ? 'canMoveDown' : '',
     ].filter(Boolean).join('|');
-    item.iconPath = new vscode.ThemeIcon('circle-filled');
+    // VS Code aligns leaf icons with branch twisties if both siblings have icons.
+    if (!expandable) item.iconPath = new vscode.ThemeIcon('circle-filled');
     if (node) {
+      const preview = notePreview(node.note || '');
+      if (preview) item.description = preview;
       item.tooltip = this.nodeTooltip(node);
       item.command = {
         command: 'flowlinks.jumpToNode',

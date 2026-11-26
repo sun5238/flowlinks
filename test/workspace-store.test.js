@@ -42,6 +42,28 @@ test('shared file uses relative source paths across different mounts', async t =
   assert.equal(loaded.nodes()[0].line, 2);
 });
 
+test('encoding a shared graph converts paths without cloning or mutating the full snapshot', () => {
+  const root = '/workspace/project';
+  const shared = store(root);
+  const snapshot = graph(root).snapshot();
+  const node = Object.values(snapshot.nodes)[0];
+  Object.freeze(node);
+  Object.freeze(snapshot.nodes);
+  Object.freeze(snapshot);
+  const clone = global.structuredClone;
+  let copies = 0;
+  global.structuredClone = (...args) => { copies++; return clone(...args); };
+  let encoded;
+  try {
+    encoded = JSON.parse(shared.encode(snapshot));
+  } finally {
+    global.structuredClone = clone;
+  }
+  assert.equal(copies, 0, 'each save already receives a graph snapshot');
+  assert.equal(node.uri, pathToFileURL(path.join(root, 'src', 'main.rs')).toString());
+  assert.deepEqual(Object.values(encoded.graph.nodes)[0].uri, { relativePath: 'src/main.rs' });
+});
+
 test('a stale instance can replace the complete shared snapshot', async t => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'flowlinks-store-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));

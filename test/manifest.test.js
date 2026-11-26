@@ -90,3 +90,12 @@ test('inline actions remain available in the right-click menu, including both mo
   assert.ok(manifest.contributes.commands.some(entry => entry.command === 'flowlinks.editNodeName' && entry.title.includes('Name')));
   assert.ok(manifest.contributes.commands.some(entry => entry.command === 'flowlinks.editNodeNote' && entry.title.includes('Note')));
 });
+
+test('message links expose their own inline delete action', () => {
+  const menu = manifest.contributes.menus;
+  const command = manifest.contributes.commands.find(entry => entry.command === 'flowlinks.deleteMessage');
+  assert.equal(command.title, 'Delete Message');
+  const actions = menu['view/item/context'].filter(entry => entry.command === command.command);
+  assert.ok(actions.some(entry => entry.group.startsWith('inline@') && entry.when.includes('graphMessage')));
+  assert.ok(actions.some(entry => !entry.group.startsWith('inline@') && entry.when.includes('graphMessage')));
+});

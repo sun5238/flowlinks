@@ -49,15 +49,19 @@ class WorkspaceStore {
   }
 
   encode(snapshot) {
-    const graph = structuredClone(snapshot);
-    for (const node of Object.values(graph.nodes)) {
+    const nodes = {};
+    for (const [id, node] of Object.entries(snapshot.nodes)) {
       const uri = this.vscode.Uri.parse(node.uri);
-      if (uri.scheme !== 'file') continue;
-      const relative = path.relative(this.folder.uri.fsPath, uri.fsPath);
-      if (relative && !path.isAbsolute(relative) && relative !== '..' && !relative.startsWith(`..${path.sep}`)) {
-        node.uri = { relativePath: relative.split(path.sep).join('/') };
+      if (uri.scheme === 'file') {
+        const relative = path.relative(this.folder.uri.fsPath, uri.fsPath);
+        if (relative && !path.isAbsolute(relative) && relative !== '..' && !relative.startsWith(`..${path.sep}`)) {
+          nodes[id] = { ...node, uri: { relativePath: relative.split(path.sep).join('/') } };
+          continue;
+        }
       }
+      nodes[id] = node;
     }
+    const graph = { ...snapshot, nodes };
     return `${JSON.stringify({ format: 'flowlinks-workspace-v1', graph }, null, 2)}\n`;
   }
 

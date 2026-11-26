@@ -231,6 +231,7 @@ test('extension workflow captures, reparents, links, navigates, tracks and persi
   assert.equal(graph.get(entry.id).name, 'entry');
   assert.equal(provider.getTreeItem(provider.groupElement(requestGroup.id)).label, 'API request');
   assert.equal(graph.get(send.id).note, 'first\nsecond');
+  assert.equal(provider.getTreeItem(provider.nodeElement(send.id)).description, 'first second');
 
   host.prompts.push('JobReady');
   await run('addMessage', provider.nodeElement(send.id));
@@ -533,5 +534,37 @@ test('sibling arrows reorder without reparenting while drag expands the new pare
   assert.equal(host.expanded.has(`node:${a.id}`), true, 'a newly reparented node must remain visible');
   assert.ok(host.reveals.slice(beforeDrag).some(row => row.element.nodeId === a.id && row.details.expand === true));
   assert.ok(host.reveals.slice(beforeDrag).some(row => row.element.nodeId === b.id));
+  await extension.deactivate();
+});
+
+test('deleting a message row removes only that link and preserves both bookmarks', async () => {
+  const graph = new ReadingGraph();
+  const group = graph.addGroup('Path');
+  const [a, b, c] = ['a', 'b', 'c'].map((name, line) => graph.addNode({
+    uri: 'file:///test/main.rs', line, character: 0, name, groupId: group.id,
+  }).node);
+  graph.moveOnto(b.id, a.id);
+  graph.setNote(b.id, 'important');
+  const first = graph.addMessage(b.id, c.id, 'Ready').message;
+  const second = graph.addMessage(b.id, c.id, 'Retry').message;
+  const host = mockHost('a\nb\nc');
+  host.saved.set('flowlinks.state.v1', graph.snapshot());
+  const extension = loadExtension(host);
+  await extension.activate(host.context);
+  const provider = host.mock.treeView.options.treeDataProvider;
+  const row = provider.getChildren(provider.nodeElement(b.id))[0];
+  assert.equal(provider.getTreeItem(row).contextValue, 'graphMessage');
+  assert.equal(row.messageId, first.id);
+  await host.handlers.get('flowlinks.deleteMessage')(row);
+
+  const saved = new ReadingGraph(host.saved.get('flowlinks.state.v1'));
+  assert.deepEqual(saved.getGroup(group.id).children, [a.id, c.id]);
+  assert.deepEqual(saved.get(a.id).children, [b.id]);
+  assert.equal(saved.get(b.id).parentId, a.id);
+  assert.ok(saved.get(c.id));
+  assert.equal(saved.get(b.id).note, 'important');
+  assert.deepEqual(saved.get(b.id).messages, [second]);
+  assert.deepEqual(provider.getChildren(provider.nodeElement(b.id)).filter(item => item.kind === 'message').map(item => item.messageId), [second.id]);
+  saved.validate();
   await extension.deactivate();
 });

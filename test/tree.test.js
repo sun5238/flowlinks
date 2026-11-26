@@ -64,17 +64,19 @@ test('groups own source nodes, calls and message links without a source bookmark
   assert.equal(provider.getParent(childElement).nodeId, root.id);
   assert.equal(provider.getParent(entryElement).groupId, group.id);
   assert.equal(provider.getTreeItem(childElement).label, 'send');
-  assert.equal(provider.getTreeItem(childElement).iconPath.name, 'circle-filled');
+  assert.equal(provider.getTreeItem(childElement).iconPath, undefined);
   assert.ok(provider.getTreeItem(childElement).tooltip instanceof MarkdownString);
   assert.deepEqual(provider.getTreeItem(childElement).tooltip.text,
     ['send', 'project/x.rs:2:1', 'first line\nsecond line']);
-  assert.equal(provider.getTreeItem(childElement).description, undefined);
+  assert.equal(provider.getTreeItem(childElement).description, 'first line second line');
+  assert.equal(provider.getTreeItem(entryElement).description, 'overview');
   assert.deepEqual(provider.getTreeItem(entryElement).tooltip.text,
     ['entry', 'project/x.rs:1:1', 'overview']);
   assert.match(provider.getTreeItem(entryElement).tooltip.value, /\*\*Note\*\*/);
   const reference = provider.getChildren(childElement)[0];
   assert.equal(provider.getTreeItem(reference).label, 'receive: JobReady');
   assert.equal(provider.getTreeItem(reference).iconPath.name, 'link');
+  assert.equal(provider.getTreeItem(reference).description, undefined);
   assert.deepEqual(provider.getTreeItem(reference).tooltip.text,
     ['send', 'receive', 'project/x.rs:3:1', 'JobReady']);
   assert.deepEqual(provider.getTreeItem(reference).command.arguments, [receiver.id]);
@@ -88,6 +90,33 @@ test('groups own source nodes, calls and message links without a source bookmark
   assert.equal(provider.getParent(childElement).nodeId, root.id);
 });
 
+test('long notes are previewed without changing node names or full tooltips', () => {
+  const graph = new ReadingGraph();
+  graph.addGroup('Main');
+  const entry = node(graph, 'dispatch', 0);
+  const provider = new GraphTreeProvider(vscode, graph, () => {});
+  const element = provider.nodeElement(entry.id);
+  assert.equal(provider.getTreeItem(element).description, undefined);
+
+  const note = `  ${'x'.repeat(45)}\n  further details`;
+  graph.setNote(entry.id, note);
+  provider.refresh();
+  const item = provider.getTreeItem(element);
+  assert.equal(item.label, 'dispatch');
+  assert.equal(item.description, `${'x'.repeat(36)}...`);
+  assert.deepEqual(item.tooltip.text, ['dispatch', 'project/x.rs:1:1', note]);
+
+  graph.setNote(entry.id, '  First line  \n  second line  ');
+  provider.refresh();
+  assert.equal(provider.getTreeItem(element).description, 'First line second line');
+  graph.setNote(entry.id, ' \n  ');
+  provider.refresh();
+  assert.equal(provider.getTreeItem(element).description, undefined);
+  graph.setNote(entry.id, '');
+  provider.refresh();
+  assert.equal(provider.getTreeItem(element).description, undefined);
+});
+
 test('rendering a large sibling list does not search siblings for every row', () => {
   const graph = new ReadingGraph();
   graph.addGroup('Main');
@@ -95,6 +124,30 @@ test('rendering a large sibling list does not search siblings for every row', ()
   const provider = new GraphTreeProvider(vscode, graph, () => {});
   graph.siblings = () => { throw new Error('repeated linear sibling lookup during rendering'); };
   for (const root of roots) provider.getTreeItem(provider.nodeElement(root.id));
+});
+
+test('expanded branches and sibling leaves keep their labels in the same column', () => {
+  const graph = new ReadingGraph();
+  graph.addGroup('Path');
+  const a = node(graph, 'a', 0);
+  const b = node(graph, 'b', 1);
+  const c = node(graph, 'c', 2);
+  const d = node(graph, 'd', 3);
+  graph.moveOnto(b.id, a.id);
+  graph.moveOnto(c.id, b.id);
+  graph.moveOnto(d.id, a.id);
+  const provider = new GraphTreeProvider(vscode, graph, () => {});
+
+  assert.deepEqual(provider.getChildren(provider.nodeElement(a.id)).map(item => item.nodeId), [b.id, d.id]);
+  assert.equal(provider.getParent(provider.nodeElement(d.id)).nodeId, a.id);
+  assert.equal(provider.getParent(provider.nodeElement(c.id)).nodeId, b.id);
+  assert.equal(provider.getTreeItem(provider.nodeElement(a.id)).iconPath, undefined);
+  assert.equal(provider.getTreeItem(provider.nodeElement(b.id)).collapsibleState, vscode.TreeItemCollapsibleState.Collapsed);
+  assert.equal(provider.getTreeItem(provider.nodeElement(d.id)).collapsibleState, vscode.TreeItemCollapsibleState.None);
+  // VS Code puts an icon-only leaf in the twistie slot when its branch sibling also has an icon.
+  assert.equal(provider.getTreeItem(provider.nodeElement(b.id)).iconPath, undefined);
+  assert.equal(provider.getTreeItem(provider.nodeElement(d.id)).iconPath.name, 'circle-filled');
+  assert.equal(provider.getTreeItem(provider.nodeElement(c.id)).iconPath.name, 'circle-filled');
 });
 
 test('only middle siblings expose both arrows and refresh updates their availability', () => {
